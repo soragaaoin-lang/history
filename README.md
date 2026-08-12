@@ -80,7 +80,7 @@ python -m chat_history_poc render <session-id>
 ## Tests
 
 ```powershell
-pytest
+.\.venv\Scripts\python.exe -m pytest -q
 ```
 
 fixtureは実データの構造だけを参考にした匿名の最小データで、実際の会話や秘密情報は含みません。
