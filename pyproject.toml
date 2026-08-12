@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "chat-history-poc"
 version = "0.1.0"
 description = "Normalize Codex chat histories and trace AI-extracted decisions to evidence."
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
@@ -20,4 +20,3 @@ package-dir = {"" = "src"}
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-

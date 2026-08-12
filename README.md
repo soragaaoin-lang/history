@@ -18,19 +18,21 @@ AI呼び出しはCoreから分離されています。初期実装の `FileExcha
 
 ## Setup
 
-Python 3.11以上を使用します。実行時依存は標準ライブラリだけです。
+Python 3.10以上を使用します。実行時依存は標準ライブラリだけです。
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
+
+仮想環境の有効化は必須ではありません。PowerShellのExecution Policyで
+`Activate.ps1` が拒否される環境でも、以下の例のように
+`.venv\Scripts\python.exe` を直接実行できます。
 
 インストールせず実行する場合はPowerShellで次のように設定できます。
 
-```powershell
-$env:PYTHONPATH="src"
-```
+以降のコマンド例で `python` がパッケージを見つけられない場合は、
+`python` を `.\.venv\Scripts\python.exe` に置き換えてください。
 
 ## JSONL ingest
 
@@ -90,4 +92,3 @@ fixtureは実データの構造だけを参考にした匿名の最小データ�
 - `event_msg.user_message` と `agent_message` は会話の重複表現だったためmetadataとして保持し、会話Markdownには `response_item.message` を使用します。
 - AI分析は自動実行しません。抽出精度は使用するAIと会話に記録された情報に依存します。
 - HTML、RAG、Vector DB、Webアプリ、Codex CLI Runnerは実装していません。
-
