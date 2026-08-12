@@ -22,9 +22,11 @@ def parser() -> argparse.ArgumentParser:
     ingest.add_argument("jsonl", type=Path)
     export = sub.add_parser("export-analysis")
     export.add_argument("session_id")
+    export.add_argument("--prompt-version", choices=("v1", "v2"), default="v2")
     import_analysis = sub.add_parser("import-analysis")
     import_analysis.add_argument("session_id")
     import_analysis.add_argument("decisions_json", type=Path)
+    import_analysis.add_argument("--prompt-version", choices=("v1", "v2"), default="v2")
     render = sub.add_parser("render")
     render.add_argument("session_id")
     return result
@@ -39,10 +41,13 @@ def main(argv: list[str] | None = None) -> int:
             session_id, report, duplicate = IngestService(repo).ingest(args.jsonl)
             print(json.dumps({"session_id": session_id, "status": "already_ingested" if duplicate else "ingested", "report": report}, ensure_ascii=False, indent=2))
         elif args.command == "export-analysis":
-            path = AnalysisBundleService(repo, args.artifacts, Path("prompts/decision_extraction_v1.md")).export(args.session_id)
+            prompt_path = Path(f"prompts/decision_extraction_{args.prompt_version}.md")
+            path = AnalysisBundleService(repo, args.artifacts, prompt_path).export(args.session_id)
             print(path)
         elif args.command == "import-analysis":
-            run_id = AnalysisImportService(repo).import_file(args.session_id, args.decisions_json)
+            run_id = AnalysisImportService(repo).import_file(
+                args.session_id, args.decisions_json, prompt_version=f"decision_extraction_{args.prompt_version}"
+            )
             print(json.dumps({"analysis_run_id": run_id, "status": "imported"}))
         elif args.command == "render":
             print(RenderService(repo, args.artifacts).decisions(args.session_id))
@@ -50,4 +55,3 @@ def main(argv: list[str] | None = None) -> int:
     except (PocError, OSError, ValueError) as exc:
         print(str(exc))
         return 2
-

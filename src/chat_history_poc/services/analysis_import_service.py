@@ -19,7 +19,7 @@ class AnalysisImportService:
     def __init__(self, repository: SQLiteRepository):
         self.repository = repository
 
-    def import_file(self, session_id: str, path: Path) -> int:
+    def import_file(self, session_id: str, path: Path, prompt_version: str = "decision_extraction_v2") -> int:
         if not self.repository.session_exists(session_id):
             raise SessionNotFoundError(session_id)
         raw_text = path.read_text(encoding="utf-8")
@@ -32,7 +32,7 @@ class AnalysisImportService:
         missing = sorted({mid for d in decisions for mid in d.evidence_message_ids if mid not in known})
         if missing:
             raise EvidenceNotFoundError(", ".join(missing))
-        return self.repository.save_decisions(session_id, decisions, raw_text)
+        return self.repository.save_decisions(session_id, decisions, raw_text, prompt_version)
 
     @classmethod
     def validate(cls, data: Any) -> list[DecisionCandidate]:
@@ -54,7 +54,7 @@ class AnalysisImportService:
                 raise DecisionValidationError(f"decision[{index}].context must be string or null")
             if item["confidence"] not in {"high", "medium", "low"}:
                 raise DecisionValidationError(f"decision[{index}].confidence is invalid")
-            if item["status"] not in {"proposed", "accepted", "rejected", "superseded", "reverted", "unknown"}:
+            if item["status"] not in {"proposed", "accepted", "rejected", "superseded", "reverted", "cancelled", "unknown"}:
                 raise DecisionValidationError(f"decision[{index}].status is invalid")
             if not item["evidence_message_ids"]:
                 raise DecisionValidationError(f"decision[{index}] has no evidence")

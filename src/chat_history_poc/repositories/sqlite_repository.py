@@ -106,10 +106,11 @@ class SQLiteRepository:
             rows = conn.execute("SELECT id FROM messages WHERE session_id=? AND kind='message'", (session_id,)).fetchall()
         return {str(r["id"]) for r in rows}
 
-    def save_decisions(self, session_id: str, decisions: list[DecisionCandidate], raw_json: str) -> int:
+    def save_decisions(self, session_id: str, decisions: list[DecisionCandidate], raw_json: str,
+                       prompt_version: str = "decision_extraction_v2") -> int:
         with self.connect() as conn:
             cur = conn.execute("INSERT INTO analysis_runs(session_id,prompt_version,runner_type,status,completed_at) VALUES(?,?,'file_exchange','completed',CURRENT_TIMESTAMP)",
-                               (session_id, "decision_extraction_v1"))
+                               (session_id, prompt_version))
             run_id = int(cur.lastrowid)
             for decision in decisions:
                 conn.execute("INSERT INTO decisions(id,analysis_run_id,session_id,title,decision,context,confidence,raw_analysis_json) VALUES(?,?,?,?,?,?,?,?)",

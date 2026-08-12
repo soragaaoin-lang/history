@@ -51,6 +51,12 @@ python -m chat_history_poc ingest C:\path\to\session.jsonl
 python -m chat_history_poc export-analysis <session-id>
 ```
 
+既定では出力契約、Atomicity、`cancelled`を明確化したPrompt v2を使用します。v1 baselineを再現する場合は次を使います。
+
+```powershell
+python -m chat_history_poc export-analysis <session-id> --prompt-version v1
+```
+
 `artifacts/<session-id>/` に次を生成します。
 
 - `normalized_session.json`
@@ -67,6 +73,12 @@ python -m chat_history_poc export-analysis <session-id>
 
 ```powershell
 python -m chat_history_poc import-analysis <session-id> C:\path\to\decisions.json
+```
+
+Prompt v1で生成したbaselineを取り込む場合は、記録するPrompt versionを明示します。
+
+```powershell
+python -m chat_history_poc import-analysis <session-id> C:\path\to\decisions.json --prompt-version v1
 ```
 
 構造、必須フィールド、Confidence、重複Decision ID、Evidenceの有無を検証します。存在しないMessage IDは `DECISION_EVIDENCE_NOT_FOUND` で拒否します。

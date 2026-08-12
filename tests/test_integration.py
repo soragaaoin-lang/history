@@ -28,3 +28,12 @@ def test_complete_file_exchange_flow(tmp_path, fixture_path):
     AnalysisImportService(repo).import_file(session_id, result)
     markdown = RenderService(repo, artifacts).decisions(session_id)
     assert evidence in markdown.read_text(encoding="utf-8")
+
+
+def test_v2_prompt_is_exported_without_modification(tmp_path, fixture_path):
+    repo = SQLiteRepository(tmp_path / "db.sqlite")
+    session_id, _, _ = IngestService(repo).ingest(fixture_path)
+    prompt = tmp_path / "decision_extraction_v2.md"
+    prompt.write_text("# Decision Extraction Prompt v2\n", encoding="utf-8")
+    bundle = AnalysisBundleService(repo, tmp_path / "artifacts", prompt).export(session_id)
+    assert (bundle / "analysis_prompt.md").read_text(encoding="utf-8") == "# Decision Extraction Prompt v2\n"

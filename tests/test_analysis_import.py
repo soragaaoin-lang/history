@@ -39,3 +39,19 @@ def test_import_and_read_back(repository, fixture_path, tmp_path):
     run_id = AnalysisImportService(repository).import_file(session_id, path)
     assert run_id > 0
     assert repository.latest_decisions(session_id)[0].decision == "SQLiteを採用"
+
+
+def test_cancelled_status_and_prompt_version_are_preserved(repository, fixture_path, tmp_path):
+    session_id, _, _ = IngestService(repository).ingest(fixture_path)
+    evidence = repository.events(session_id, messages_only=True)[0].id
+    data = decision([evidence])
+    data["decisions"][0]["status"] = "cancelled"
+    path = tmp_path / "decisions.json"
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    run_id = AnalysisImportService(repository).import_file(
+        session_id, path, prompt_version="decision_extraction_v1"
+    )
+    assert repository.latest_decisions(session_id)[0].status == "cancelled"
+    with repository.connect() as conn:
+        row = conn.execute("SELECT prompt_version FROM analysis_runs WHERE id=?", (run_id,)).fetchone()
+    assert row["prompt_version"] == "decision_extraction_v1"
