@@ -2,6 +2,11 @@
 
 Codexがローカルに保存したJSONL会話履歴を共通形式へ正規化し、設計・実装上の意思決定候補と元会話の根拠を追跡できるか検証するPoCです。入力JSONLは変更せずSource of Truthとして扱い、全行を `recognized`、`unknown`、`parse_error` のいずれかに分類します。
 
+引継ぎ・再開時は次を参照してください。
+
+- [引継ぎ書](docs/HANDOFF.md)
+- [プロジェクト履歴](docs/PROJECT_HISTORY.md)
+
 ## Architecture
 
 ```text
