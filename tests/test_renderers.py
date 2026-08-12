@@ -12,8 +12,8 @@ def test_conversation_markdown():
 
 def test_decision_markdown_contains_evidence_link():
     decision = DecisionCandidate("D-001", "保存形式", "SQLiteを採用", None,
-        evidence_message_ids=["session-msg-000003"], confidence="high")
+        evidence_message_ids=["session-msg-000003"], confidence="high", status="accepted")
     rendered = render_decisions([decision])
     assert "## D-001 保存形式" in rendered
+    assert "### 状態\n\naccepted" in rendered
     assert "[session-msg-000003](conversation.md#session-msg-000003)" in rendered
-

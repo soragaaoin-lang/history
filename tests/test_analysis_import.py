@@ -13,7 +13,7 @@ def decision(evidence):
         "alternatives": ["JSON", "SQLite"], "rationale": ["検索可能"],
         "rejected_alternatives": [{"alternative": "JSON", "reason": "更新が複雑"}],
         "risks": [], "revisit_conditions": [], "evidence_message_ids": evidence,
-        "confidence": "high", "missing_information": []
+        "confidence": "high", "missing_information": [], "status": "accepted"
     }]}
 
 
@@ -39,4 +39,3 @@ def test_import_and_read_back(repository, fixture_path, tmp_path):
     run_id = AnalysisImportService(repository).import_file(session_id, path)
     assert run_id > 0
     assert repository.latest_decisions(session_id)[0].decision == "SQLiteを採用"
-

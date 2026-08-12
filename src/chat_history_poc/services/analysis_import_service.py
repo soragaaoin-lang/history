@@ -12,7 +12,7 @@ from chat_history_poc.repositories.sqlite_repository import SQLiteRepository
 class AnalysisImportService:
     REQUIRED = {"decision_id", "title", "decision", "context", "alternatives", "rationale",
                 "rejected_alternatives", "risks", "revisit_conditions", "evidence_message_ids",
-                "confidence", "missing_information"}
+                "confidence", "missing_information", "status"}
     LIST_FIELDS = {"alternatives", "rationale", "rejected_alternatives", "risks", "revisit_conditions",
                    "evidence_message_ids", "missing_information"}
 
@@ -54,6 +54,8 @@ class AnalysisImportService:
                 raise DecisionValidationError(f"decision[{index}].context must be string or null")
             if item["confidence"] not in {"high", "medium", "low"}:
                 raise DecisionValidationError(f"decision[{index}].confidence is invalid")
+            if item["status"] not in {"proposed", "accepted", "rejected", "superseded", "reverted", "unknown"}:
+                raise DecisionValidationError(f"decision[{index}].status is invalid")
             if not item["evidence_message_ids"]:
                 raise DecisionValidationError(f"decision[{index}] has no evidence")
             if item["decision_id"] in seen:
@@ -68,6 +70,5 @@ class AnalysisImportService:
                 decision_id=item["decision_id"], title=item["title"], decision=item["decision"], context=item["context"],
                 alternatives=item["alternatives"], rationale=item["rationale"], rejected_alternatives=rejected,
                 risks=item["risks"], revisit_conditions=item["revisit_conditions"], evidence_message_ids=item["evidence_message_ids"],
-                confidence=item["confidence"], missing_information=item["missing_information"]))
+                confidence=item["confidence"], missing_information=item["missing_information"], status=item["status"]))
         return result
-

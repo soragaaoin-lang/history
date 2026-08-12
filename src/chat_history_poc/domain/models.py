@@ -58,7 +58,7 @@ class DecisionCandidate:
     evidence_message_ids: list[str] = field(default_factory=list)
     confidence: str = "low"
     missing_information: list[str] = field(default_factory=list)
+    status: str = "unknown"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-

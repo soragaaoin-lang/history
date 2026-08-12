@@ -1,6 +1,10 @@
 # Decision Extraction Prompt v1
 
-添付された `normalized_session.json` の会話から、設計・実装上の重要な意思決定候補を抽出してください。
+添付された `analysis_session.json` から、設計・実装上の重要な意思決定候補を抽出してください。
+
+`messages` は人間とAssistantの開発会話、`constraints` はAGENTS.md由来のプロジェクト制約、
+`implementation_events` はコマンドやファイル変更の痕跡です。制約や実装イベントだけを根拠に、
+会話に存在しない意思決定理由を作ってはいけません。
 
 出力は `decision_analysis.schema.json` に従うJSONオブジェクトだけにしてください。Markdownや説明文を付けないでください。
 
@@ -16,4 +20,5 @@
 - `evidence_message_ids` には入力中に実在する `kind: message` のIDだけを指定してください。
 - Confidenceは `high`、`medium`、`low` のいずれかにしてください。
 - 根拠が不足している候補のConfidenceは `low` にしてください。
-
+- `status` は `proposed`、`accepted`、`rejected`、`superseded`、`reverted`、`unknown` のいずれかにしてください。
+- 後から撤回・置換された判断を、現在も有効な最終決定として扱わないでください。

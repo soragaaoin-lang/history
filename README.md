@@ -7,7 +7,8 @@ Codexがローカルに保存したJSONL会話履歴を共通形式へ正規化�
 ```text
 Codex JSONL → Raw Event → Codex Adapter → Normalized Event → SQLite
                                                          ├→ conversation.md
-                                                         └→ analysis bundle
+                                                         └→ Analysis Projection
+                                                              └→ analysis bundle
                                                               ↓ human-mediated AI
                                                          decisions.json
                                                               ↓ validation
@@ -53,13 +54,14 @@ python -m chat_history_poc export-analysis <session-id>
 `artifacts/<session-id>/` に次を生成します。
 
 - `normalized_session.json`
+- `analysis_session.json`
 - `normalization_report.json`
 - `conversation.md`
 - `analysis_prompt.md`
 
 ## AIへの渡し方
 
-`analysis_prompt.md` と `normalized_session.json` を、利用者が選んだAIへ明示的に渡します。AIにはJSONだけを返させ、`schemas/decision_analysis.schema.json` に沿った `decisions.json` として保存してください。秘密情報を含む可能性があるため、送信先と内容を利用者自身で確認してください。
+`analysis_prompt.md` と `analysis_session.json` を、利用者が選んだAIへ明示的に渡します。`normalized_session.json` は完全保存・監査用であり、AI分析へ直接渡す前提ではありません。AIにはJSONだけを返させ、`schemas/decision_analysis.schema.json` に沿った `decisions.json` として保存してください。秘密情報を含む可能性があるため、送信先と内容を利用者自身で確認してください。
 
 ## AI結果Import
 
@@ -89,6 +91,7 @@ fixtureは実データの構造だけを参考にした匿名の最小データ�
 
 - 2026年8月に提供された2件のCodex JSONLで観測した構造だけを既知として分類します。
 - 未観測のトップレベルtypeやsubtypeは推測せず `unknown` としてRawとともに保持します。
+- Analysis ProjectionはDeveloper/System設定と既知のenvironment/plugin contextを分析会話から除外し、AGENTS.md制約と実装イベントを別枠にします。元情報はNormalized Sessionに残ります。
 - `event_msg.user_message` と `agent_message` は会話の重複表現だったためmetadataとして保持し、会話Markdownには `response_item.message` を使用します。
 - AI分析は自動実行しません。抽出精度は使用するAIと会話に記録された情報に依存します。
 - HTML、RAG、Vector DB、Webアプリ、Codex CLI Runnerは実装していません。

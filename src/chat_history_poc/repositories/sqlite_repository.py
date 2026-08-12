@@ -135,6 +135,5 @@ def _decision_from_dict(data: dict) -> DecisionCandidate:
         rejected_alternatives=[RejectedAlternative(**item) for item in data.get("rejected_alternatives", [])],
         risks=data.get("risks", []), revisit_conditions=data.get("revisit_conditions", []),
         evidence_message_ids=data.get("evidence_message_ids", []), confidence=data["confidence"],
-        missing_information=data.get("missing_information", []),
+        missing_information=data.get("missing_information", []), status=data.get("status", "unknown"),
     )
-

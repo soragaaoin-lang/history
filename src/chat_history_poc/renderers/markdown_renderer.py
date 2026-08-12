@@ -15,7 +15,7 @@ def render_decisions(decisions: list[DecisionCandidate]) -> str:
     parts = ["# 意思決定一覧", ""]
     for item in decisions:
         parts.extend([f"## {item.decision_id} {item.title}", "", "### 決定", "", item.decision, "",
-                      "### 背景", "", item.context or "記録なし", ""])
+                      "### 状態", "", item.status, "", "### 背景", "", item.context or "記録なし", ""])
         _list(parts, "比較案", item.alternatives)
         _list(parts, "採用理由", item.rationale)
         parts.extend(["### 却下理由", ""])
@@ -38,4 +38,3 @@ def _list(parts: list[str], title: str, values: list[str]) -> None:
     parts.extend([f"### {title}", ""])
     parts.extend([f"- {value}" for value in values] or ["- なし"])
     parts.append("")
-
