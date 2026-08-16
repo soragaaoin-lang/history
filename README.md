@@ -1,11 +1,15 @@
 # AI駆動開発チャット履歴再利用PoC
 
-Codexがローカルに保存したJSONL会話履歴を共通形式へ正規化し、設計・実装上の意思決定候補と元会話の根拠を追跡できるか検証するPoCです。入力JSONLは変更せずSource of Truthとして扱い、全行を `recognized`、`unknown`、`parse_error` のいずれかに分類します。
+Codexがローカルに保存したJSONL会話履歴から重要な判断を抽出し、元のMessage／Attachmentへ戻れるEvidence付きDecision Recordとして再利用できるか検証するPoCです。次の開発者やAIが全履歴を毎回読み直さず、少ない質問・少ないコンテキストで安全に作業を始めることを目指します。
+
+入力JSONLは変更せずRaw Archiveとして扱い、全行を `recognized`、`unknown`、`parse_error` のいずれかに分類します。会話だけから仕様を完全復元できるとはみなさず、根拠不足は推測で埋めません。
 
 引継ぎ・再開時は次を参照してください。
 
 - [引継ぎ書](docs/HANDOFF.md)
 - [プロジェクト履歴](docs/PROJECT_HISTORY.md)
+
+現在の主機能はEvidence付きDecision RecordとRaw会話へのリンクです。Requirement／USDM／UML／テスト計画の一括生成や、Section間Decisionの完全自動統合はMVP対象外です。
 
 ## Architecture
 
