@@ -90,7 +90,7 @@ Projection v3ではSection Coverageが53.66%から80.49%へ改善し、Attachmen
 
 - 会話に埋もれた重要判断をEvidence付きDecision Recordとして残す
 - 採用だけでなく却下、撤回、停止理由を残す
-- 人間が候補を承認する
+- trust levelを付け、曖昧・矛盾・高リスクな判断だけを利用時に人間へ確認する
 - 次の作業では関連Decisionだけを読み、Rawは必要時に開く
 - Full-contextとADR-contextの実務A/B比較で価値を測る
 
@@ -119,12 +119,14 @@ PlismのMVPは次です。
 complete raw archive
   -> message/attachment evidence
   -> decision candidates and source dispositions
-  -> human approval
-  -> reusable ADR catalog
+  -> trust level付きreusable ADR catalog
+  -> confirmation on exception
   -> click-through raw evidence
 ```
 
 Decision typeはArchitectureに限定せず、operational、domain、experiment、evaluation、project governanceを区別します。UIではArchitecture subsetをADRとして表示できます。
+
+当初は人間が全候補を承認してから利用する案でした。しかし、独立したレビュー作業は継続利用の障壁になります。そこで`confirmed`、`inferred`、`candidate`をlifecycleとは別に保持し、通常は自動生成結果をそのまま参照可能にします。人間の介入は、矛盾、状態不明、高リスク、Evidence不一致が実際の作業で問題になる時だけ要求します。
 
 ## 11. 失敗から残す原則
 
@@ -133,6 +135,7 @@ Decision typeはArchitectureに限定せず、operational、domain、experiment�
 - Decision lifecycleとimplementation/verification statusを分ける。
 - 人間のmerge承認を恒久Requirement承認とみなさない。
 - AI単独提案をacceptedにしない。
+- 全件の事前承認を要求せず、確認済みとAI推定を同じ扱いにしない。
 - 採用案だけでなく却下案と停止理由を残す。
 - 分割で候補を増やす前に、後段の統合コストを見積もる。
 - 外部サービスは大規模実装前に最小contract testを行う。
