@@ -11,6 +11,8 @@ Codexがローカルに保存したJSONL会話履歴から重要な判断を抽�
 
 現在の主機能はEvidence付きDecision RecordとRaw会話へのリンクです。Requirement／USDM／UML／テスト計画の一括生成や、Section間Decisionの完全自動統合はMVP対象外です。
 
+Decision抽出後の全件レビューは必須にしません。`confirmed`、`inferred`、`candidate`のtrust levelをDecision lifecycleとは別に持ち、不確実・矛盾・高リスクな判断が実際に利用される時だけ、人間へ確認する方針です。
+
 ## Architecture
 
 ```text

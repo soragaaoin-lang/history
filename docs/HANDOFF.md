@@ -75,7 +75,25 @@ ADRカタログから現在有効な判断、却下案、制約、未解決事�
 - unknown / insufficient evidence
 - not a decision
 
-重要なのは、採用判断だけでなく「なぜ不要か」「なぜやめたか」を残すことです。AIの提案だけで`accepted`にせず、人間の明示的な承認または十分なEvidenceを要求します。
+重要なのは、採用判断だけでなく「なぜ不要か」「なぜやめたか」を残すことです。AIの提案だけで`accepted`にせず、人間の明示的な発言または十分なEvidenceを要求します。
+
+専用画面で全候補を事前承認させる運用は採りません。レビュー待ちが日常作業になると利用されなくなるためです。代わりに、Decision lifecycleとは独立した`trust_level`を持たせます。
+
+| trust level | 意味 |
+|---|---|
+| `confirmed` | 人間が会話内で採用、却下、変更、撤回などを明示しており、記録内容をEvidenceが直接支える。 |
+| `inferred` | 複数の発言や実装経緯から強く推定できるが、明示確認はない。 |
+| `candidate` | 提案か決定か、適用範囲、現在状態のいずれかが曖昧。 |
+
+抽出したRecordはすぐ検索・参照可能にし、次の場合だけ利用時に人間へ確認します。
+
+- 関連Decision同士が矛盾する
+- 現在有効なlifecycleが分からない
+- セキュリティ、削除、金銭、外部公開など高リスクな作業へ使う
+- `inferred`または`candidate`を恒久的な設計根拠として使う
+- Recordの要約とRaw Evidenceが一致しない
+
+会話中の「その方針で進めて」「承認」「元に戻して」は、新しい承認画面を要求せず直接Evidenceとして利用できます。ただしPRのmergeはコード受入れのEvidenceであり、すべての実装詳細を恒久Requirementとして承認したことにはしません。
 
 ## 6. Decision Recordの最小項目
 
@@ -85,6 +103,7 @@ MVPでは少なくとも次を持たせます。
 - title
 - decision_type
 - lifecycle_status
+- trust_level
 - context / problem
 - decision
 - rationale
@@ -188,7 +207,7 @@ Attachment追加は情報到達範囲を改善し、Attachment Evidence 20件は
 - Requirement、Decision、作業制約の安定分類
 - `superseded`等の時系列統合
 - 長文入力での選択揺れ
-- ADR候補の人間承認UI
+- trust level推定と、利用時だけ行う例外確認
 - token / credit削減量と作業品質の比較
 - 未見会話での一般性能
 
@@ -205,8 +224,9 @@ Attachment追加は情報到達範囲を改善し、Attachment Evidence 20件は
   -> adr_candidates[]
   -> source_dispositions[]
   -> unknowns[]
-  -> human review
-  -> ADR catalog
+  -> trust_level付きADR catalog
+  -> relevant Decision retrieval
+  -> conflict / uncertainty / high-risk時だけ質問
   -> raw Message / Attachment link
 ```
 
@@ -217,6 +237,7 @@ Attachment追加は情報到達範囲を改善し、Attachment Evidence 20件は
 3. Architecture、運用、業務、実験、評価、project governanceを区別できる。
 4. AI単独提案を自動で`accepted`にしない。
 5. 判断でない発言と根拠不足を捨てずに説明できる。
+6. 通常利用では全件承認を要求せず、危険な曖昧さだけを質問できる。
 
 ## 10. 次の評価
 
@@ -281,3 +302,38 @@ Baseline、Gold、AI raw outputは比較のため上書きしません。公開�
 - `evaluation/sectioning_v1/asset_management_long_session/`: Section候補評価（ローカル未公開）
 
 ローカルArtifactsや実会話が存在しない環境でも、本書を起点にMVP方針は再開できます。ただし過去の個別判断を検証するときは、許可された原本Evidenceが必要です。
+
+## 15. 実験で使用したローカルコード
+
+次はProjection v3、Section単位抽出、統合候補、独立関係判定の実験に使用したコードです。個人情報を含む可能性がある評価資料・Artifactsと同じdirty worktreeにあり、現時点では公開`main`へ含めていません。再利用する場合は、各ファイルの差分とデータ依存を個別に確認してください。
+
+| ファイル | 役割 |
+|---|---|
+| `src/chat_history_poc/services/projection_v3_input_service.py` | 正規化済みMessage／AttachmentからProjection v3入力を構築する。 |
+| `src/chat_history_poc/services/decision_v3_validation_service.py` | 型付きMessage／Attachment Evidenceを検証する。 |
+| `src/chat_history_poc/services/section_analysis_bundle_service.py` | Section候補ごとの最小Analysis Bundleを生成する。 |
+| `src/chat_history_poc/services/integration_candidate_service.py` | Section間Decisionの候補pairとclusterを決定的規則で絞り込む。 |
+| `src/chat_history_poc/services/integration_adjudication_bundle_service.py` | clusterごとの独立AI判定Bundleを生成する。 |
+| `src/chat_history_poc/services/integration_adjudication_validation_service.py` | 関係判定出力のDecision key、方向、Evidence等を検証する。 |
+| `src/chat_history_poc/services/analysis_projection_service.py` | ProjectionにEvidence IDやSection情報を渡すための変更を含む。 |
+| `src/chat_history_poc/services/analysis_bundle_service.py` | Prompt／Schema／Projection version別Bundle生成の変更を含む。 |
+| `src/chat_history_poc/cli.py` | 上記実験サービスを呼び出すCLI commandを追加した。 |
+| `src/chat_history_poc/domain/errors.py` | Evidence欠落や判定不整合等のerror定義を追加した。 |
+
+実験Prompt／Schema:
+
+- `prompts/requirement_extraction_v1.md`
+- `prompts/decision_extraction_v3.md`
+- `prompts/integration_adjudication_v1.md`
+- `schemas/requirement_extraction_v1.schema.json`
+- `schemas/decision_analysis_v3.schema.json`
+- `schemas/integration_adjudication_v1.schema.json`
+
+対応する主なテスト:
+
+- `tests/test_projection_v3.py`
+- `tests/test_section_analysis_bundle.py`
+- `tests/test_integration_candidate.py`
+- `tests/test_integration_adjudication.py`
+
+これらは実験結果を再現・検証する手掛かりとして記録します。現在のMVPにすべて採用するという意味ではありません。特にSection間統合と独立関係判定は、複雑性と評価負担が増えたため停止対象です。
