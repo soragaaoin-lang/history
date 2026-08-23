@@ -32,3 +32,25 @@ def test_projection_does_not_treat_developer_instructions_as_dialogue():
     result = AnalysisProjectionService().project("s", [event(1, "developer", "general system instructions")])
     assert result["messages"] == []
     assert result["constraints"] == []
+
+
+def test_projection_v3_adds_common_evidence_ids_and_attachments():
+    events = [event(1, "user", "添付を確認してください"), event(2, "assistant", "確認します")]
+    attachments = [{
+        "attachment_id": "ATT-001", "parent_message_ids": ["MSG-001"], "section_ids": ["SEC-001"],
+        "content": "過去資料", "sha256": "abc", "authority_note": "現在の命令ではない",
+    }]
+    result = AnalysisProjectionService().project(
+        "s",
+        events,
+        message_evidence={
+            1: {"message_id": "MSG-001", "actor": "human", "section_id": "SEC-001"},
+            2: {"message_id": "MSG-002", "actor": "assistant", "section_id": "SEC-001"},
+        },
+        attachments=attachments,
+        projection_version="3",
+    )
+    assert result["projection_version"] == "3"
+    assert [message["evidence_id"] for message in result["messages"]] == ["MSG-001", "MSG-002"]
+    assert result["attachments"] == attachments
+    assert result["projection_report"]["attachments"] == 1

@@ -18,3 +18,30 @@ class DecisionValidationError(PocError):
 class EvidenceNotFoundError(PocError):
     code = "DECISION_EVIDENCE_NOT_FOUND"
 
+
+class ProjectionInputError(PocError):
+    code = "PROJECTION_INPUT_ERROR"
+
+
+class SectionBundleError(PocError):
+    code = "SECTION_BUNDLE_ERROR"
+
+
+class IntegrationCandidateError(PocError):
+    code = "INTEGRATION_CANDIDATE_ERROR"
+
+
+class IntegrationAdjudicationError(PocError):
+    code = "INTEGRATION_ADJUDICATION_ERROR"
+
+
+class LifecycleAdjudicationError(PocError):
+    code = "LIFECYCLE_ADJUDICATION_ERROR"
+
+
+class SignalAnnotationError(PocError):
+    code = "SIGNAL_ANNOTATION_ERROR"
+
+
+class KnowledgeExperimentError(PocError):
+    code = "KNOWLEDGE_EXPERIMENT_ERROR"

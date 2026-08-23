@@ -21,7 +21,15 @@ INTERNAL_USER_BLOCKS = (
 class AnalysisProjectionService:
     """Projects lossless normalized events into decision-analysis input."""
 
-    def project(self, session_id: str, events: list[NormalizedEvent]) -> dict[str, Any]:
+    def project(
+        self,
+        session_id: str,
+        events: list[NormalizedEvent],
+        *,
+        message_evidence: dict[int, dict[str, Any]] | None = None,
+        attachments: list[dict[str, Any]] | None = None,
+        projection_version: str = "1",
+    ) -> dict[str, Any]:
         messages: list[dict[str, Any]] = []
         constraints: list[dict[str, Any]] = []
         implementation_events: list[dict[str, Any]] = []
@@ -37,12 +45,23 @@ class AnalysisProjectionService:
                     content = self._strip_agents_blocks(event.content or "")
                     content = self._strip_internal_blocks(content)
                     if content.strip():
-                        messages.append({
+                        message = {
                             "id": event.id,
                             "actor": "human" if event.role == "user" else "assistant",
                             "content": content.strip(),
                             "source_line": event.source_line,
-                        })
+                        }
+                        if message_evidence is not None:
+                            evidence = message_evidence.get(event.source_line)
+                            if evidence is None:
+                                raise ValueError(f"missing message evidence for source line {event.source_line}")
+                            if evidence["actor"] != message["actor"]:
+                                raise ValueError(f"actor mismatch for source line {event.source_line}")
+                            message.update({
+                                "evidence_id": evidence["message_id"],
+                                "section_id": evidence.get("section_id"),
+                            })
+                        messages.append(message)
             elif event.kind in {"file_change", "command"}:
                 implementation_events.append({
                     "id": event.id,
@@ -52,9 +71,9 @@ class AnalysisProjectionService:
                     "content": event.content,
                 })
 
-        return {
+        result = {
             "session_id": session_id,
-            "projection_version": "1",
+            "projection_version": projection_version,
             "messages": messages,
             "constraints": constraints,
             "implementation_events": implementation_events,
@@ -65,6 +84,10 @@ class AnalysisProjectionService:
                 "implementation_events": len(implementation_events),
             },
         }
+        if attachments is not None:
+            result["attachments"] = attachments
+            result["projection_report"]["attachments"] = len(attachments)
+        return result
 
     @staticmethod
     def _strip_internal_blocks(content: str) -> str:

@@ -1,150 +1,130 @@
-# Plism 開発引継ぎ書
+# plism PoC 引継ぎ書
 
-最終更新: 2026-08-16
+最終更新: 2026-08-23
 
-## 1. 結論
+## 1. この文書の目的
 
-Plismの主目的は、AI開発会話から仕様書一式を完全復元することではありません。
+この文書は、会社PCや別の作業者が `plism` を再開するときに、現在地、再現手順、評価上の注意、未完了作業を誤解なく引き継ぐための入口である。実験の詳しい時系列は [PROJECT_HISTORY.md](PROJECT_HISTORY.md) を参照する。
 
-> 会話に埋もれた重要な判断を、元の発言へ戻れるEvidence付きDecision Recordとして残し、次の開発者やAIが少ない質問・少ないコンテキストで安全に作業を始められるようにする。
+本PoCの目的は、AI駆動開発の長いチャット履歴から、後で再利用できる意思決定と要求を、元発言へ戻れるEvidence付きで復元できるか検証することである。完成した仕様書生成サービスや、AIが自動で正解を決めるシステムではない。
 
-画面上ではArchitecture DecisionをADRとして提示できますが、内部では対象を`Decision Record`として扱います。Architecture以外の運用判断、業務判断、実験結果、評価方針、プロジェクトの停止・再開判断も区別して保持するためです。
+## 2. 現在の結論
 
-Requirement、USDM、UML、テスト計画の自動生成、Section間の完全自動統合、コード状態との自動照合は、現在の主機能ではありません。
+### 技術成立性
 
-## 2. 解決する問題
+PoCとして次は成立した。
 
-AI駆動開発では、長い会話を毎回AIへ読み直させるとtoken・credit・待ち時間が増えます。一方、単純な要約だけでは次が失われます。
+- Codex Raw JSONLを全行保持して正規化できる。
+- 開発会話、内部コンテキスト、制約、実装イベント、添付本文を分けられる。
+- 長期会話をSectionへ分け、各SectionからDecision候補を抽出できる。
+- MessageとAttachmentを型付きEvidenceとして検証できる。
+- Section間の重複候補を絞り、統合後にlifecycleを再判定できる。
+- Schemaの限定的な型崩れを、原文とEvidenceを変えずに救済できる。
+- AI原本、評価値、Hashを分離保存し、失敗も上書きせず比較できる。
 
-- なぜその方式を選んだか
-- 何を採用しなかったか
-- 一度採用した案をなぜ撤回したか
-- どの条件で判断が有効か
-- どの発言が根拠か
-- プロジェクトをなぜ停止・凍結したか
+### 品質成立性
 
-人間は不明点や反対意見をチャットへ書きやすい一方、自分の中で自明な前提、暗黙の納得、チャット外の会話を常に記録するわけではありません。そのため会話履歴は完全な仕様の正本ではなく、重要なEvidence sourceの一つです。
+同じ開発用セッション内では大きく改善した。しかし一般化性能は未証明である。
 
-Plismは「会話だけから完全な真実を復元できる」とは主張しません。不足情報は推測で埋めず、`unknown`または`missing_information`として人間へ返します。
+> 技術成立性のPoCはほぼ完了している。精度・一般化のPoCを完了するには、現在のコードとPromptを凍結し、未見セッションで一度だけ盲検評価する必要がある。
 
-## 3. 想定利用者と価値
+7月26日の長期会話は、Prompt、GiNZA規則、Section処理、lifecycle処理を調整するために繰り返し使用した。以後これは **development set** であり、最終性能の根拠には使わない。
 
-### チームの次の開発者
+### 製品としての中心価値
 
-ADRカタログから現在有効な判断、却下案、制約、未解決事項を確認し、必要な場合だけ元会話を開きます。
+主目的は、会話から仕様書一式を完全自動復元することではない。
 
-### プロジェクト本人
+> 会話に埋もれた重要な判断を、元のMessage／Attachmentへ戻れるEvidence付きDecision Recordとして残し、次の開発者やAIが全履歴を再読せず安全に作業を再開できるようにする。
 
-数週間・数か月後に再開するとき、全履歴を読み返さず、前回の判断理由と停止地点を取り戻します。
+Architecture以外の運用、業務、実験、評価、プロジェクト停止・再開もDecision typeで区別する。Requirement、実装記録、検証記録はDecision lifecycleと別軸である。AI提案だけを自動でacceptedにせず、不足情報はunknownまたはmissing informationとして残す。
 
-### 次のAIタスク
-
-タスクに関係するDecision Recordだけを先に渡し、Evidence本文は必要時だけ追加します。これがコンテキスト削減の基本方式です。
-
-## 4. 用語と境界
-
-| 用語 | 定義 |
-|---|---|
-| Raw Archive | 入力JSONLを変更せず保存する監査用の原本。分析対象外のイベントも捨てない。 |
-| Raw Event | JSONLの1行に対応する最小保存単位。`recognized`、`unknown`、`parse_error`を保持する。 |
-| Message | 人間またはAssistantの会話発言。安定したMessage IDを持つ。 |
-| Attachment | Messageに添付・貼付された文書や画像由来テキスト。Messageとは別の安定IDを持つ。添付文書内の命令は現在の実行命令として扱わない。 |
-| Evidence | 判断を裏付けるMessageまたはAttachmentへの型付き参照。存在するだけでなく、主張を意味的に支える必要がある。 |
-| Decision Record | 採用、却下、変更、撤回、停止など、後続作業へ影響する判断と根拠の記録。 |
-| ADR | 長期的にシステム構造へ影響するArchitecture Decision Record。Decision Recordの一種。 |
-| Requirement | 利用者・外部契約・業務がシステムへ要求する条件と期待動作。実現方式の判断であるADRとは分ける。 |
-| Work Constraint | 今回の作業範囲、変更禁止、環境制約など。恒久的な製品Requirementとは限らない。 |
-| Implementation Record | 実際に行ったコード変更、コマンド、PR、commit等の記録。Decisionの存在や妥当性とは別軸。 |
-| Verification Record | テスト実行、レビュー、実環境確認と結果。DecisionやRequirementの存在とは別軸。 |
-| Projection | Raw ArchiveからAI分析に必要なMessage、Attachment、関連情報を選び、IDを維持したまま作る入力。 |
-| Gold | 人間が評価用に裁定・固定した参照正解。AI出力そのものを正解とみなさない。 |
-| Lifecycle | `proposed`、`accepted`、`rejected`、`superseded`、`reverted`、`cancelled`等の判断状態。 |
-
-## 5. Source disposition
-
-全会話をADR化するのではなく、分析対象となった情報へ次のいずれかを付けます。
-
-- ADR candidate
-- supporting evidence
-- rejected alternative
-- work constraint
-- implementation record
-- verification record
-- one-time operation
-- duplicate
-- unknown / insufficient evidence
-- not a decision
-
-重要なのは、採用判断だけでなく「なぜ不要か」「なぜやめたか」を残すことです。AIの提案だけで`accepted`にせず、人間の明示的な発言または十分なEvidenceを要求します。
-
-専用画面で全候補を事前承認させる運用は採りません。レビュー待ちが日常作業になると利用されなくなるためです。代わりに、Decision lifecycleとは独立した`trust_level`を持たせます。
+専用画面で全候補を事前承認させる運用にはしない。Decision lifecycleとは別に、次のtrust levelを持たせ、実際の利用時に例外確認する。
 
 | trust level | 意味 |
 |---|---|
-| `confirmed` | 人間が会話内で採用、却下、変更、撤回などを明示しており、記録内容をEvidenceが直接支える。 |
-| `inferred` | 複数の発言や実装経緯から強く推定できるが、明示確認はない。 |
-| `candidate` | 提案か決定か、適用範囲、現在状態のいずれかが曖昧。 |
+| `confirmed` | 人間の明示発言があり、RecordをEvidenceが直接支える |
+| `inferred` | 複数発言や実装経緯から強く推定できるが明示確認はない |
+| `candidate` | 提案／決定、適用範囲、現在状態のいずれかが曖昧 |
 
-抽出したRecordはすぐ検索・参照可能にし、次の場合だけ利用時に人間へ確認します。
+人間確認が必要なのは、関連Decisionが矛盾する、lifecycle不明、削除・金銭・セキュリティ・外部公開など高リスク、推定Recordを恒久根拠にする、要約とRaw Evidenceが一致しない場合である。PR mergeはコード受入れのEvidenceではあるが、全実装詳細を恒久Requirementとして承認した証拠とはみなさない。
 
-- 関連Decision同士が矛盾する
-- 現在有効なlifecycleが分からない
-- セキュリティ、削除、金銭、外部公開など高リスクな作業へ使う
-- `inferred`または`candidate`を恒久的な設計根拠として使う
-- Recordの要約とRaw Evidenceが一致しない
+## 3. 現在のパイプライン
 
-会話中の「その方針で進めて」「承認」「元に戻して」は、新しい承認画面を要求せず直接Evidenceとして利用できます。ただしPRのmergeはコード受入れのEvidenceであり、すべての実装詳細を恒久Requirementとして承認したことにはしません。
+```text
+Codex Raw JSONL
+  ↓ ingest / lossless normalization
+Normalized Session（監査用・完全保持）
+  ↓ analysis projection
+Messages + Constraints + Implementation Events + Attachments
+  ↓ sectioning
+Section候補
+  ↓ GiNZA・軽量規則
+候補signal（答えではない）
+  ↓ Section単位 Prompt v4 + Interpretation Notebook
+Section Decision原本
+  ↓ Schema / Evidence検証 + 限定的lossless repair
+有効なSection Decision
+  ↓ cross-section integration
+統合Decision
+  ↓ lifecycle review
+最終status付きDecision
+```
 
-## 6. Decision Recordの最小項目
+古い一括パイプラインも再現用に残している。
 
-MVPでは少なくとも次を持たせます。
+```text
+Raw JSONL → Normalized Session → Analysis Projection → AI → decisions.json
+         → Schema/Evidence validation → SQLite → decisions.md → conversation.md
+```
 
-- ID
-- title
-- decision_type
-- lifecycle_status
-- trust_level
-- context / problem
-- decision
-- rationale
-- considered alternatives
-- rejected alternativesと却下理由
-- scope / conditions
-- risks
-- missing_information
-- evidence_refs
-- proposed_by / approved_by（分かる場合）
-- decided_at（分かる場合）
-- supersedes / superseded_by
-- implementation_status（判断状態とは分離）
-- verification_status（判断状態とは分離）
+## 4. 層ごとの責務
 
-`decision_type`の候補は次です。
+| 層・成果物 | 役割 |
+|---|---|
+| Raw JSONL | 変更しないSource of Truth |
+| `normalized_session.json` | 全イベントを保持する監査用中間形式 |
+| `normalization_report.json` | recognized / unknown / parse_error / silent dropの確認 |
+| `conversation.md` | 人間がMessage Evidenceの本文を確認する表示 |
+| `analysis_session.json` | AIへ渡す分析用Projection。完全保存層とは別物 |
+| `normalized_attachments.jsonl` | 添付本文、親Message、Section、SHA-256の正規化結果 |
+| Section index | 機能・PR・調査・運用単位の候補境界 |
+| signal | request / acceptance / rejection / reason / uncertainty / alternativeの候補。正解ラベルではない |
+| `decisions.raw.json` | AIの初回原本。修正・上書き禁止 |
+| validated Decision | SchemaとEvidence存在検査を通った機械可読データ |
+| integrated Decision | Section間の同義・分割・置換候補を統合した結果 |
+| lifecycle Decision | 後続発言を見てstatusを再判定した結果 |
+| trust level | lifecycleとは別に、Recordが明示確認か推定か候補かを表す |
+| `decisions.md` | 人間向け表示。JSON正本から生成する |
+| Gold / Negative Set | 人間がAI出力を見る前に固定する評価基準 |
 
-- `architecture`
-- `operational`
-- `domain`
-- `experiment`
-- `evaluation`
-- `project_governance`
+重要原則は次の二つである。
 
-プロジェクト全体の終了・凍結は個別ADRの`reverted`だけでは表現せず、`project_governance`の独立したDecision Recordとして扱います。
+1. 情報を捨てずに保存することと、AIへ全部読ませることは別である。
+2. signal、Section名、Notebookは補助情報であり、DecisionやRequirementの正解ではない。
 
-## 7. 現在までに確認したこと
+## 5. DecisionとRequirement
 
-以下のうち、初期PoCは公開リポジトリにあります。Projection v3以降の実験コード、評価資料、Artifactsは個人情報を含む可能性があるローカルのdirty worktreeにあり、この文書更新には含めていません。結果の記録と公開済み実装を混同しないでください。
+このリポジトリでは両者を混同しない。
 
-### Lossless normalizationとEvidence link
+| 概念 | 問い | 例 |
+|---|---|---|
+| Decision | なぜ、その案・実現方式・方針を選んだか | 非同期方式をやめて同期方式を採用する |
+| Requirement | 条件の下でシステムがどう振る舞うべきか | 全ページ保存成功時だけ同期カーソルを更新する |
 
-- Codex JSONLの全行をRaw Eventとして保存できる。
-- 未知イベントとparse errorを黙って捨てない。
-- Message IDから`conversation.md`の元発言へ戻れる。
-- Projection v3ではAttachmentを独立配列として保持し、MessageとAttachmentの型付きEvidenceを検証できる。
-- 旧Projectionと旧Schemaを変更せず比較実験を行えた。
+Requirement、ADR、作業制約、進捗報告、テスト結果も分ける。`implementation_status` と `verification_status` はRequirementそのものではなく、後段のReconciliation情報として扱う設計である。
 
-### Gmail Requirement抽出 v1
+## 6. 主要な検証結果
 
-固定35 Messageに対する人間裁定後のGoldは44件でした。
+### 6.1 Lossless normalization
+
+- 実Codex JSONL 2件、合計10,753行で全行分類を確認した。
+- 主に使った8月1日セッションは8,306イベント。
+- `recognized=8,306`、`unknown=0`、`parse_error=0`、`silently_dropped=0`。
+- Analysis Projectionは484会話、1 constraint、237 implementation eventsになった。
+
+### 6.2 Gmail Requirement v1（8月1日、開発用セット）
+
+人間裁定済みGoldは44件。固定Sourceは35 Message、AI出力は48件。
 
 | 指標 | 結果 |
 |---|---:|
@@ -152,188 +132,292 @@ MVPでは少なくとも次を持たせます。
 | partial=0.5 Recall | 84.09% |
 | strict Precision | 60.42% |
 | partial=0.5 Precision | 73.96% |
-| Evidence ID存在率 | 100% |
-| Evidence意味妥当性 | 97.96% |
-| Critical hallucination | 0 |
-| Requirement/ADR/制約の混同 | 6件 |
-| superseded取得 | 0/1 |
+| Evidence ID存在 | 98/98（100%） |
+| Evidence意味妥当性 | 96/98（97.96%） |
+| Critical Hallucination | 0件 |
+| Requirement / ADR・作業制約の型混同 | 6件 |
+| `superseded` Recall | 0/1 |
 
-主要な問題は検索だけでなく、Requirement・ADR・作業制約の分類と、時間経過による状態統合でした。このセットは改善へ使用済みなのでdevelopment setであり、一般性能の根拠にはしません。
+Gold SHA-256:
 
-### 長期会話とProjection v3
+`af347780f1823363eab3763e9f25aac66fa0b0b67521d314c03c191182364347`
 
-968 Messageの長期会話では、旧ProjectionがAttachment本文をAIへ渡していないことが分かりました。
+AI原本 SHA-256:
 
-| 指標 | v2 | v3 |
+`1e7f2cf7090cc3c5043a4ce69004d271bad9e5d78fddd0d0a31ca0fcb548cfda`
+
+解釈: 主要仕様の発見よりも、Requirement / ADR / 作業制約の分類、条件の保持、時間的status統合がボトルネックだった。
+
+### 6.3 7月26日長期会話の正規化とSectioning
+
+| 項目 | 結果 |
+|---|---:|
+| 正規化Message | 969（human 188 / assistant 780 / AGENTS 1） |
+| Section候補 | 41 |
+| Attachment | 35 |
+| 添付欠落 | 0 |
+| Section未割当 | 0 |
+| 検証エラー | 0 |
+
+Section index SHA-256:
+
+`89bb2ac5d3e297d0667facb9e429e6b8056a7dcef7a4fac7a1163b8991c18ba3`
+
+Sectionは現在も `candidate_pending_human_adjudication` であり、正式なGoldではない。
+
+### 6.4 Decision v2 → Projection v3
+
+添付35件は正規化済みだったが、v2の `analysis_session.json` には1件も入っていなかった。Projection v3でAttachmentを正式Evidenceにした。
+
+| 指標 | v2 | Projection v3 |
 |---|---:|---:|
-| Decision数 | 24 | 31 |
-| 全Section Coverage | 53.66% | 80.49% |
-| 対象Section Coverage | 65.63% | 87.50% |
-| Atomicity | 75.0% | 67.74% |
-| lifecycle遷移取得 | 0/4 | 0/4 |
+| Decision | 24 | 31 |
+| Attachment入力 | 0 | 35 |
+| 全41 Section参照 | 22/41 | 33/41 |
+| 暫定target Section | 21/32 | 28/32 |
+| status | accepted 24/24 | accepted 31/31 |
+| Critical Hallucination | 0 | 0 |
 
-Attachment追加は情報到達範囲を改善し、Attachment Evidence 20件はすべて意味的に妥当でした。一方、旧Decision維持率は58.33%、全件`accepted`、Evidence ID誤り1件であり、Projection改善だけでは分類・状態・出力安定性を解決できませんでした。
+Projection v3は旧未取得11 Section中10 Sectionを回復し、Attachment Evidence 20/20は意味的に妥当だった。一方で存在しないEvidence IDが1件あり、Atomicityは75.0%から67.74%へ悪化、status collapseは残った。
 
-### Section単位抽出と統合実験
+### 6.5 GiNZA signal単独比較
 
-41 Sectionから253 Decision候補が生まれ、31,020 pairを58候補・10 clusterまで機械的に削減しました。しかし独立AIによる10 clusterの関係判定は、7件がinvalid JSON、3件が未知Decision keyで、valid outputは0件でした。
+- 968 Message中485件へ1,782 signalを付与した。
+- request 908、acceptance 110、rejection 217、reason 268、uncertainty 9、alternative 270。
+- 暫定target Sectionは28/32から30/32へ改善。
+- Evidence存在は100%になった。
+- Why-notは19/31から13/35へ低下。
+- 入力サイズは40.15%増加。
+- statusは全件acceptedのまま。
 
-この実験は、分割で局所的Recallを上げても、重複・状態統合・評価負担が急増することを示しました。現時点では製品MVPから外します。
+したがってGiNZA signal v1単独は **保留**。候補検索には使えるが、signalを増やすだけでWhy/Why-notや状態遷移が改善するとは確認できなかった。
 
-### ADR再利用の定性的評価
+### 6.6 Prompt v4 / Notebook単独比較
 
-チーム開発経験者の視点を求める同一プロンプトにDecision資料を渡したところ、次を読み取れました。
+- Prompt v4: AtomicityとWhy-not構造には改善候補があったが、Evidence存在、旧Decision維持、Section coverageの事前条件を満たさず **棄却**。
+- Interpretation Notebook v1: Evidence存在、Atomicity、型混同、1件の状態遷移は改善したが、意味維持とSection coverageが悪化し **棄却**。
+- Notebookの合成例がDecisionへ漏れた証拠は0件。
 
-- データ完全性、安全性、追跡可能性を重視する技術方針
-- scope拡大と過剰設計
-- 実環境検証の遅れ
-- 何を作らないか、いつ止めるかというプロジェクト判断の弱さ
-- 撤回・停止・再開時に必要な条件
+Promptや知識を足せば単純に良くなるわけではなく、長文一括入力の選択揺れが強いことが分かった。
 
-これは、全Raw履歴を読むことなく「次の開発者に重要な正負の知識を渡せる」という主仮説への最初の有望な観測です。ただし、採点rubric、発見ごとのADR/Evidence対応、盲検比較がないためGoldや正式ベンチマークではありません。
+### 6.7 Hybrid Section抽出
 
-## 8. 現時点の評価
+Section分割、signal候補検索、Section単位Prompt v4 + Notebook、Section間統合を組み合わせた。
 
-成功している部分:
+| 指標 | Hybrid v1 |
+|---|---:|
+| AI raw Decision | 268 |
+| 機械検証後 | 257 |
+| 統合後 | 256 |
+| 全41 Section coverage | 36/41（87.80%） |
+| 暫定target coverage | 31/32（96.88%） |
+| Evidence存在 | 746/746（100%） |
+| status | accepted 236 / proposed 10 / superseded 10 |
 
-- Rawを失わず保存する
-- AI入力をProjectionとして分離する
-- Message / AttachmentをEvidenceとして参照する
-- 抽出結果から元発言へ戻る
-- 却下・撤回・失敗を含む判断資料が第三者レビューに利用できる
+固定40件サンプルの暫定人手評価:
 
-未解決の部分:
+| 指標 | 結果 |
+|---|---:|
+| 再利用可能Decision | 34/40（85.0%） |
+| Atomicity | 33/40（82.5%） |
+| Evidence意味支持 | 40/40（100%） |
+| status時系列妥当 | 33/40（82.5%） |
+| Critical / Minor Hallucination | 0 / 0 |
 
-- Requirement、Decision、作業制約の安定分類
-- `superseded`等の時系列統合
-- 長文入力での選択揺れ
-- trust level推定と、利用時だけ行う例外確認
-- token / credit削減量と作業品質の比較
-- 未見会話での一般性能
+11件の除外原因は、未知Evidence 4件とSEC-012のSchema型崩れ7件だった。
 
-したがって、現段階は「Evidence plumbingは成立、ADR再利用価値は有望、完全自動抽出精度は未確立」です。
+### 6.8 Schema recovery + lifecycle review
 
-## 9. 次に作るMVP
+SEC-012の `rationale` が文字列で返った7件を、文字列内容を変えず1要素配列へ包む限定修復で回復した。その後、統合後に残ったproposed 10件だけを、元Sectionと後続2 Sectionで再判定した。
 
-追加機能を広げず、次の一本に限定します。
+| 指標 | Hybrid v1 | Recovery + lifecycle |
+|---|---:|---:|
+| 検証後Decision | 257 | 264 |
+| 統合後Decision | 256 | 263 |
+| 全41 Section coverage | 36/41 | 37/41（90.24%） |
+| 暫定target coverage | 31/32 | 32/32（100%） |
+| status accepted | 236 | 251 |
+| status proposed | 10 | 1 |
+| status superseded | 10 | 11 |
+| 元Decision Evidence | 746/746 | 766/766 |
+| lifecycle Evidence | 対象外 | 10/10 |
 
-```text
-1 Codex JSONL
-  -> immutable Raw Archive
-  -> Message / Attachment Projection
-  -> adr_candidates[]
-  -> source_dispositions[]
-  -> unknowns[]
-  -> trust_level付きADR catalog
-  -> relevant Decision retrieval
-  -> conflict / uncertainty / high-risk時だけ質問
-  -> raw Message / Attachment link
+既知のstatus失敗7件はすべて修正された。さらに2件が後続の人間Evidenceによりacceptedへ変わったが、固定済み旧裁定とは不一致であるため、人間の再裁定が必要である。保守的に数えると固定40件のstatus妥当性は38/40（95%）。
+
+最終 lifecycle Decision SHA-256:
+
+`7dd46cb9a57d26148019e9d15ff2b751da26c87f1ea59b6e96c3e5a4d9922b6d`
+
+## 7. 現在言えること／言えないこと
+
+### 言えること
+
+- 長い実Codex履歴を欠損なく保持し、分析用入力へ変換できる。
+- Attachment欠落はProjection層の問題として切り分け、型付きEvidenceで回復できた。
+- Section単位処理は一括入力より候補Section coverageを改善した。
+- Evidence存在・意味追跡は安定しており、確認した実験でCritical Hallucinationは0件だった。
+- 限定的Schema recoveryと独立lifecycle工程は、同じ開発用セッション上で既知の失敗を改善した。
+
+### まだ言えないこと
+
+- 未見の会話でも同じRecall / Precisionが出る。
+- 263件すべてが再利用可能なDecisionである。
+- Section 32/32が正式なDecision Recall 100%を意味する。
+- 「後続2 Section」が最適なstatus判定窓である。
+- 現在のPrompt、Notebook、signal、Section境界、Schemaが最適である。
+- RequirementとDecisionの一般性能が証明済みである。
+- 将来のAIや人間がこのデータを十分に再利用できる。
+
+Section coverageは正式Goldに対するRecallではない。Hybridの40件評価も全263件の品質保証ではない。
+
+## 8. 過学習・評価漏洩への扱い
+
+過学習の危険はある。モデルを再学習したわけではないが、同じ7月26日会話を見ながらPrompt、規則、窓幅、統合方法を改善したため、評価設計上は開発セットへの適合が起きている。
+
+比較的汎用と考えられる変更:
+
+- Attachmentの正式Evidence化
+- Message / Attachmentの型付きEvidence存在検査
+- AI原本を変えない限定的scalar-to-array修復
+- 抽出とlifecycle判定の工程分離
+
+未見データで特に検証すべき変更:
+
+- GiNZAの語彙・rule
+- Section境界と候補検索閾値
+- Prompt v4の分類規則
+- Notebookの解釈規則
+- 後続2 Sectionというstatus窓
+- Section間統合候補の閾値
+
+## 9. 次に行う作業
+
+機能追加より先に、二段階で評価する。
+
+### A. 抽出の一般化評価
+
+1. 現在のコード、Prompt、Schema、Notebook、GiNZA ruleを凍結しHashを記録する。
+2. lifecycle差異2件（ID-220、ID-225）を人間が裁定し、開発セットの記録を閉じる。
+3. これまでPrompt調整に使っていない別セッションを一つ選ぶ。可能なら別機能・別プロジェクトにする。
+4. AI出力を見る前に、人間がDecision Gold 10〜20件とNegative Setを固定する。
+5. Source retrievalとDecision extractionを別指標として扱う。
+6. 現在のパイプラインを一度だけ実行し、途中でPromptやGoldを変更しない。
+7. 事前固定した指標で採点し、成功・失敗の両方を保存する。
+
+暫定の合格目安:
+
+| 指標 | 目安 |
+|---|---:|
+| Decision Recall | 70%以上 |
+| Decision Precision | 75%以上 |
+| Evidence Accuracy | 95%以上 |
+| Status Accuracy | 80%以上 |
+| Atomicity | 75%以上 |
+| Critical Hallucination | 0件 |
+
+この閾値は未見結果を見る前にチームで承認し、結果後に動かさない。
+
+### B. 再利用価値のA/B評価
+
+抽出の一般化とは別に、同じ実務タスクを独立した二つのAIタスクへ渡す。
+
+- Full-context: 許可されたRaw会話全体
+- ADR-context: 承認済みDecision RecordとEvidence link。必要なRawだけ追加可能
+
+入力byte・推定token・可能ならcredit、完了時間、追加質問、重要発見、根拠のない主張、過去判断との矛盾、人間の盲検選好を記録する。これにより「抽出できるか」だけでなく「次の開発で本当に役立つか」を判定する。
+
+## 10. 環境構築と確認
+
+Python 3.10以上。通常パイプラインは標準ライブラリ中心、signal実験ではGiNZA / spaCyを使用する。
+
+```powershell
+git clone https://github.com/soragaaoin-lang/plism.git
+cd plism
+python -m venv .venv-ginza
+.\.venv-ginza\Scripts\python.exe -m pip install -e ".[dev,signals]"
+.\.venv-ginza\Scripts\python.exe -m pytest -q
+.\.venv-ginza\Scripts\python.exe -m chat_history_poc --help
 ```
 
-受け入れ条件:
+PowerShellで `Activate.ps1` が拒否されても、仮想環境を有効化せず `.venv-ginza\Scripts\python.exe` を直接使えばよい。
 
-1. ADRのEvidenceリンクから該当Raw本文へ移動できる。
-2. 採用だけでなくrejected、superseded、reverted、cancelled、project closureを扱える。
-3. Architecture、運用、業務、実験、評価、project governanceを区別できる。
-4. AI単独提案を自動で`accepted`にしない。
-5. 判断でない発言と根拠不足を捨てずに説明できる。
-6. 通常利用では全件承認を要求せず、危険な曖昧さだけを質問できる。
+基本的なingestとBundle生成:
 
-## 10. 次の評価
+```powershell
+.\.venv-ginza\Scripts\python.exe -m chat_history_poc ingest C:\path\to\session.jsonl
+.\.venv-ginza\Scripts\python.exe -m chat_history_poc export-analysis <session-id>
+```
 
-同じ実務タスクを、独立した二つのAIタスクへ渡します。
+Hybrid、integration、lifecycleの具体的な引数は、実装と同期しているルート [README.md](../README.md) とCLIの `--help` を正とする。
 
-- A: 許可されたRaw会話全体
-- B: ADRカタログとEvidenceリンク（必要なRawだけ追加可能）
+最新のローカル確認ではテストは45件成功した。
 
-同じプロンプトで次を記録します。
+## 11. 重要な成果物
 
-- 入力byte数、推定token数、可能ならcredit
-- 完了時間
-- 追加質問回数
-- 重要な発見数
-- 根拠のない主張
-- 過去判断との矛盾
-- 人間が採用したい回答
-
-評価出力には、`finding / type / supporting ADR / direct-or-inference / confidence / missing information`を要求します。複雑な総合点を先に作らず、致命的誤りと人間の盲検選好を優先します。
-
-## 11. 今は行わないこと
-
-- Requirement、USDM、UML、テスト計画の一括自動生成
-- Section境界の精密Gold作成
-- Section間Decisionの完全自動統合
-- 新しい関係判定Promptの反復調整
-- コード・テスト状態との全面Reconciliation
-- Vector DB、RAG、Webサービス化
-
-主仮説のA/B比較で価値が確認できてから再評価します。
-
-## 12. データとGitの注意
-
-公開GitHubへ次をpushしません。
-
-- `history/`内の実会話
-- SQLite DB
-- Gmail本文
-- Attachment本文
-- AI raw outputに含まれる個人・社内情報
-- ローカル絶対パス、認証情報、秘密情報
-
-Baseline、Gold、AI raw outputは比較のため上書きしません。公開可能なコード・Prompt・Schema・匿名化した評価資料だけを、内容確認後に個別commitします。
-
-## 13. 再開手順
-
-1. 本書と[プロジェクト履歴](PROJECT_HISTORY.md)を読む。
-2. `git status --short --branch`でローカル変更を確認する。
-3. Raw、Baseline、Gold、AI原本を上書きしない。
-4. 公開可否を確認してから実履歴を扱う。
-5. まずADR catalogを使うSummary条件を実行する。
-6. 許可された環境でFull-context条件を別タスクとして実行する。
-7. 品質とtoken・credit差を記録する。
-8. 不足した情報だけをDecision Recordまたは引継ぎ資料へ追加する。
-
-## 14. 重要な参照先
-
-- `README.md`: 現在実装の実行方法
-- `docs/PROJECT_HISTORY.md`: 方針転換を含む開発履歴
-- `evaluation/requirement_v1/gmail_sync/`: Gmail Requirement開発用評価（ローカル未公開）
-- `evaluation/decision_v3/asset_management_long_session/`: Projection v3比較（ローカル未公開）
-- `evaluation/sectioning_v1/asset_management_long_session/`: Section候補評価（ローカル未公開）
-
-ローカルArtifactsや実会話が存在しない環境でも、本書を起点にMVP方針は再開できます。ただし過去の個別判断を検証するときは、許可された原本Evidenceが必要です。
-
-## 15. 実験で使用したローカルコード
-
-次はProjection v3、Section単位抽出、統合候補、独立関係判定の実験に使用したコードです。個人情報を含む可能性がある評価資料・Artifactsと同じdirty worktreeにあり、現時点では公開`main`へ含めていません。再利用する場合は、各ファイルの差分とデータ依存を個別に確認してください。
-
-| ファイル | 役割 |
+| 用途 | パス |
 |---|---|
-| `src/chat_history_poc/services/projection_v3_input_service.py` | 正規化済みMessage／AttachmentからProjection v3入力を構築する。 |
-| `src/chat_history_poc/services/decision_v3_validation_service.py` | 型付きMessage／Attachment Evidenceを検証する。 |
-| `src/chat_history_poc/services/section_analysis_bundle_service.py` | Section候補ごとの最小Analysis Bundleを生成する。 |
-| `src/chat_history_poc/services/integration_candidate_service.py` | Section間Decisionの候補pairとclusterを決定的規則で絞り込む。 |
-| `src/chat_history_poc/services/integration_adjudication_bundle_service.py` | clusterごとの独立AI判定Bundleを生成する。 |
-| `src/chat_history_poc/services/integration_adjudication_validation_service.py` | 関係判定出力のDecision key、方向、Evidence等を検証する。 |
-| `src/chat_history_poc/services/analysis_projection_service.py` | ProjectionにEvidence IDやSection情報を渡すための変更を含む。 |
-| `src/chat_history_poc/services/analysis_bundle_service.py` | Prompt／Schema／Projection version別Bundle生成の変更を含む。 |
-| `src/chat_history_poc/cli.py` | 上記実験サービスを呼び出すCLI commandを追加した。 |
-| `src/chat_history_poc/domain/errors.py` | Evidence欠落や判定不整合等のerror定義を追加した。 |
+| Gmail Requirement v1評価 | `evaluation/requirement_v1/gmail_sync/` |
+| 確定Requirement Gold | `artifacts/correct/gmail_sync_gold_requirements_v1.json` |
+| 7月26日Sectioning | `evaluation/sectioning_v1/asset_management_long_session/` |
+| Decision v2 baseline | `evaluation/decision_v2/asset_management_long_session/` |
+| Projection v3比較 | `evaluation/decision_v3/asset_management_long_session/` |
+| GiNZA比較 | `evaluation/signal_v1/asset_management_long_session/` |
+| Prompt / Notebook比較 | `evaluation/knowledge_v1/asset_management_long_session/` |
+| Hybrid v1評価 | `evaluation/decision_hybrid_v1/asset_management_long_session/` |
+| Recovery / lifecycle比較 | `evaluation/decision_hybrid_recovery_v1/asset_management_long_session/` |
+| 抽出Prompt | `prompts/` |
+| JSON Schema | `schemas/` |
+| 解釈Notebook | `knowledge/` |
 
-実験Prompt／Schema:
+主要Hash一覧は各評価ディレクトリの `BASELINE_HASHES.json`、`RUN_HASHES.json`、`FROZEN_INPUT_HASHES.json` を参照する。
 
-- `prompts/requirement_extraction_v1.md`
-- `prompts/decision_extraction_v3.md`
-- `prompts/integration_adjudication_v1.md`
-- `schemas/requirement_extraction_v1.schema.json`
-- `schemas/decision_analysis_v3.schema.json`
-- `schemas/integration_adjudication_v1.schema.json`
+## 12. Gitとデータの状態
 
-対応する主なテスト:
+2026-08-23時点で、Projection v3以降のコード、Prompt、Schema、評価資料には未commit・未pushの変更がある。作業ツリーには利用者が作った成果物も含まれるため、まとめて追加する前に公開可否を個別確認する。
 
-- `tests/test_projection_v3.py`
-- `tests/test_section_analysis_bundle.py`
-- `tests/test_integration_candidate.py`
-- `tests/test_integration_adjudication.py`
+公開GitHubへ原則としてpushしないもの:
 
-これらは実験結果を再現・検証する手掛かりとして記録します。現在のMVPにすべて採用するという意味ではありません。特にSection間統合と独立関係判定は、複雑性と評価負担が増えたため停止対象です。
+- `history/` の実会話
+- Raw JSONL
+- SQLite DB
+- 実会話本文を含む `artifacts/`
+- 会社名、個人情報、Token、ローカルPath、未公開コードを含む成果物
+
+公開候補:
+
+- Source本文を含まない製品コード
+- Prompt、Schema、テスト
+- 匿名化・集計済み評価レポート
+- この引継ぎ書
+
+公開前に `git diff`、未追跡ファイル、秘密情報、`.gitignore` を確認する。現在の未commit変更を一括で捨てたり、Raw履歴を誤って追加したりしないこと。
+
+## 13. 作業用Codexタスクの整理
+
+実験で作成されたCodex UI上の作業タスクは整理済みである。
+
+- Hybrid SECタスク 41件
+- Integration clusterタスク 6件
+- Hybrid評価タスク 1件
+
+合計48件をアーカイブした。削除ではないため必要なら復元できる。
+
+リポジトリ内では、不要なGuardian系履歴44 JSONL（約6.57 MB）を削除し、研究対象の履歴と通常の3ファイルは残した。
+
+## 14. 再開時チェックリスト
+
+- [ ] この文書と `PROJECT_HISTORY.md` を読む
+- [ ] `git status` で未commit変更を確認する
+- [ ] `.venv-ginza` または同等環境でテストを実行する
+- [ ] Raw、AI原本、Gold、評価結果のHash一致を確認する
+- [ ] 7月26日とGmail 35 Messageをdevelopment setとして明記する
+- [ ] lifecycle差異2件を裁定する
+- [ ] trust level導入は未見評価後のMVP設計として扱い、既存Schemaへ無断追加しない
+- [ ] 未見セッションのGoldをAI実行前に固定する
+- [ ] 一度だけblind runする
+- [ ] 結果を見てGoldや閾値を変更しない
+- [ ] 公開前に実会話・秘密情報を除外する
+
+## 15. 現在の到達点を一文で
+
+> plismは、Codexの長期Raw履歴と添付を欠損なく分析可能な形へ変換し、Section単位のAI抽出、Evidence検証、Section間統合、lifecycle再判定まで実行でき、同じ開発用会話では高い暫定coverageとEvidence妥当性を得たが、一般化性能は未見セッションの盲検評価待ちである。
