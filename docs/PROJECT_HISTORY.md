@@ -303,6 +303,6 @@ AI実行前に人間Gold / Negative Setを固定
 
 初期基盤、Python 3.10対応、Analysis Projection、Decision Prompt v2までは公開GitHubへ反映された履歴がある。一方、2026-08-23時点のProjection v3、Section、GiNZA、Notebook、Hybrid、Schema recovery、lifecycle、評価資料には未commit・未push変更が含まれる。
 
-Repository: <https://github.com/soragaaoin-lang/plism>
+Repository: <https://github.com/soragaaoin-lang/history>
 
 実会話と生成物には個人情報・秘密情報・未公開コードが含まれ得るため、公開するコード・Prompt・Schema・匿名化済み集計と、ローカル限定のRaw・Artifactsを分けて扱う。

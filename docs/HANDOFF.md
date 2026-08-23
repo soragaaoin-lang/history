@@ -331,7 +331,7 @@ Section coverageは正式Goldに対するRecallではない。Hybridの40件評�
 Python 3.10以上。通常パイプラインは標準ライブラリ中心、signal実験ではGiNZA / spaCyを使用する。
 
 ```powershell
-git clone https://github.com/soragaaoin-lang/plism.git
+git clone https://github.com/soragaaoin-lang/history.git
 cd plism
 python -m venv .venv-ginza
 .\.venv-ginza\Scripts\python.exe -m pip install -e ".[dev,signals]"
