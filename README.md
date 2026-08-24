@@ -316,3 +316,63 @@ fixtureは実データの構造だけを参考にした匿名の最小データ�
 - `event_msg.user_message` と `agent_message` は会話の重複表現だったためmetadataとして保持し、会話Markdownには `response_item.message` を使用します。
 - AI分析は自動実行しません。抽出精度は使用するAIと会話に記録された情報に依存します。
 - HTML、RAG、Vector DB、Webアプリ、Codex CLI Runnerは実装していません。
+
+結論として、現時点で有効だったのはこの組み合わせです。
+
+```text
+Raw JSONL
+↓
+欠損なし正規化
+↓
+Attachmentを含むProjection v3
+↓
+Section単位に分割
+↓
+GiNZA・軽量規則で注目箇所を補助表示
+↓
+Section単位でAI抽出
+↓
+Schema・Evidence検証
+↓
+安全な型崩れだけ修復
+↓
+Section間統合
+↓
+別工程でlifecycleを再判定
+```
+
+特に効果が明確だったものは次です。
+
+- AttachmentをProjectionへ入れる  
+  対象Section coverageが21/32から28/32へ改善。
+
+- 長文一括ではなくSection単位で抽出する  
+  Hybridで31/32まで改善。
+
+- 限定的Schema repair  
+  `rationale`の文字列→配列のような、意味を変えない修復で失われた7件を回復。最終的に32/32。
+
+- lifecycle判定を抽出と分ける  
+  status妥当性が33/40から、保守的評価で38/40まで改善。
+
+- Evidenceの型付き検証  
+  最終的にMessage・Attachmentの参照776/776が存在。確認範囲で重大な幻覚は0件。
+
+一方、単独では有効と言えなかったものは以下です。
+
+- GiNZAだけ追加：保留  
+  Coverageは少し改善したものの、Why-notが悪化し、入力も約40%増加。候補位置を示す補助として使うのが適切。
+
+- Prompt v4だけ：棄却  
+  Atomicityなどは改善したが、重要Decisionの取りこぼしが増えた。
+
+- Notebookだけ追加：棄却  
+  Evidenceや分類は一部改善したが、全体Coverageが悪化。
+
+つまり核心は、GiNZAやPromptそのものではなく、
+
+> 「情報を欠損なく届ける」「長文を適切に分ける」「抽出と状態判定を分離する」「Evidenceを機械検証する」
+
+というパイプライン設計です。
+
+ただし、この結果は同じ7月26日会話で調整したdevelopment-set結果です。現時点では「有望で実データ上動いた手法」であり、最終的に有効と確定するには未見セッションでの盲検評価が必要です。
